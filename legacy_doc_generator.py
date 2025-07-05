@@ -75,8 +75,8 @@ def contar_lineas_codigo(code):
 def obtener_métricas_python(code, clases, funciones):
     lineas = contar_lineas_codigo(code)
     total_clases = len(clases)
-    total_funciones = len(funciones)
-    sin_docstring = sum(1 for _, doc, _ in funciones if doc == "No docstring")
+    total_funciones = len(functions)
+    sin_docstring = sum(1 for _, doc, _ in functions if doc == "No docstring")
     sin_docstring += sum(1 for _, métodos in clases for _, doc, _ in métodos if doc == "No docstring")
     largos = sum(1 for _, métodos in clases for _, _, nodo in métodos if hasattr(nodo, 'body') and len(nodo.body) > 20)
     return {
@@ -196,6 +196,8 @@ if uploaded_file is not None:
             metricas = obtener_métricas_python(code, py_classes, functions)
             for clave, valor in metricas.items():
                 st.markdown(f"**{clave}:** {valor}")
+            if st.button(f"📊 Ver gráfico de métricas ({filename})"):
+                st.bar_chart(data={k: [v] for k, v in metricas.items()})
 
             st.subheader("🏛️ Clases y métodos detectados (Python)")
             for class_name, methods in py_classes:
@@ -226,6 +228,8 @@ if uploaded_file is not None:
             metricas = obtener_métricas_java(code, java_classes)
             for clave, valor in metricas.items():
                 st.markdown(f"**{clave}:** {valor}")
+            if st.button(f"📊 Ver gráfico de métricas ({filename})"):
+                st.bar_chart(data={k: [v] for k, v in metricas.items()})
 
             st.subheader("🔍 Clases y métodos detectados (Java)")
             for class_name, methods in java_classes:
