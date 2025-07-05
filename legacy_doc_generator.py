@@ -50,7 +50,7 @@ def extract_java_elements(code):
     return classes
 
 # ------------------------
-# RESÚMENES
+# RESÚMENES Y MÉTRICAS
 # ------------------------
 
 def summarize_python_structure(py_classes, functions):
@@ -68,6 +68,36 @@ def summarize_java_structure(classes):
     for class_name, methods in classes:
         resumen += f"- Clase `{class_name}` con {len(methods)} métodos.\n"
     return resumen
+
+def contar_lineas_codigo(code):
+    return sum(1 for line in code.splitlines() if line.strip())
+
+def obtener_métricas_python(code, clases, funciones):
+    lineas = contar_lineas_codigo(code)
+    total_clases = len(clases)
+    total_funciones = len(funciones)
+    sin_docstring = sum(1 for _, doc, _ in funciones if doc == "No docstring")
+    sin_docstring += sum(1 for _, métodos in clases for _, doc, _ in métodos if doc == "No docstring")
+    largos = sum(1 for _, métodos in clases for _, _, nodo in métodos if hasattr(nodo, 'body') and len(nodo.body) > 20)
+    return {
+        "📄 Líneas de código": lineas,
+        "🏛️ Clases": total_clases,
+        "🛠️ Funciones/Métodos": total_funciones,
+        "⚠️ Sin docstring": sin_docstring,
+        "📏 Métodos largos": largos,
+    }
+
+def obtener_métricas_java(code, clases):
+    lineas = contar_lineas_codigo(code)
+    total_clases = len(clases)
+    total_metodos = sum(len(metodos) for _, metodos in clases)
+    sin_docstring = sum(1 for _, metodos in clases for _, tiene_doc in metodos if not tiene_doc)
+    return {
+        "📄 Líneas de código": lineas,
+        "🏛️ Clases": total_clases,
+        "🛠️ Métodos": total_metodos,
+        "⚠️ Sin documentación": sin_docstring,
+    }
 
 # ------------------------
 # DETECCIÓN DE MALAS PRÁCTICAS
@@ -162,6 +192,11 @@ if uploaded_file is not None:
             st.text(summary)
             markdown_blocks.append(f"{summary}")
 
+            st.subheader("📊 Métricas del archivo")
+            metricas = obtener_métricas_python(code, py_classes, functions)
+            for clave, valor in metricas.items():
+                st.markdown(f"**{clave}:** {valor}")
+
             st.subheader("🏛️ Clases y métodos detectados (Python)")
             for class_name, methods in py_classes:
                 block = f"### Clase: `{class_name}`\n"
@@ -186,6 +221,11 @@ if uploaded_file is not None:
             summary = summarize_java_structure(java_classes)
             st.text(summary)
             markdown_blocks.append(f"{summary}")
+
+            st.subheader("📊 Métricas del archivo")
+            metricas = obtener_métricas_java(code, java_classes)
+            for clave, valor in metricas.items():
+                st.markdown(f"**{clave}:** {valor}")
 
             st.subheader("🔍 Clases y métodos detectados (Java)")
             for class_name, methods in java_classes:
@@ -214,12 +254,10 @@ if uploaded_file is not None:
         pdf_file = convertir_pdf(markdown_text)
         st.download_button("📄 Descargar como PDF", pdf_file, file_name=f"{filename}.pdf")
 
-        # Acumular para descarga masiva
         if "documentos_exportados" not in st.session_state:
             st.session_state["documentos_exportados"] = []
         st.session_state["documentos_exportados"].append((filename, markdown_text, pdf_file))
 
-# ZIP conjunto al final
 if st.session_state.get("documentos_exportados"):
     st.divider()
     st.subheader("📦 Descargar toda la documentación como ZIP")
