@@ -1,5 +1,3 @@
-# legacy_doc_generator.py
-
 import os
 import ast
 import javalang
@@ -10,6 +8,10 @@ from datetime import datetime
 from markdown import markdown
 from xhtml2pdf import pisa
 
+# ------------------------
+# EXTRACCIÓN Y ANÁLISIS
+# ------------------------
+
 def extract_python_classes_and_functions(code):
     tree = ast.parse(code)
     classes = []
@@ -18,7 +20,7 @@ def extract_python_classes_and_functions(code):
         if isinstance(node, ast.FunctionDef):
             name = node.name
             docstring = ast.get_docstring(node) or "No docstring"
-            functions.append((name, docstring))
+            functions.append((name, docstring, node))
         elif isinstance(node, ast.ClassDef):
             class_name = node.name
             methods = []
@@ -26,7 +28,7 @@ def extract_python_classes_and_functions(code):
                 if isinstance(item, ast.FunctionDef):
                     method_name = item.name
                     doc = ast.get_docstring(item) or "No docstring"
-                    methods.append((method_name, doc))
+                    methods.append((method_name, doc, item))
             classes.append((class_name, methods))
     return classes, functions
 
@@ -39,11 +41,16 @@ def extract_java_elements(code):
             method_summaries = []
             for method in node.methods:
                 method_name = method.name
-                method_summaries.append((method_name, "No docstring (Java)"))
+                has_doc = bool(method.documentation)
+                method_summaries.append((method_name, has_doc))
             classes.append((class_name, method_summaries))
     except:
         pass
     return classes
+
+# ------------------------
+# RESÚMENES
+# ------------------------
 
 def summarize_python_structure(py_classes, functions):
     parts = []
@@ -61,7 +68,40 @@ def summarize_java_structure(classes):
         resumen += f"- Clase `{class_name}` con {len(methods)} métodos.\n"
     return resumen
 
-def generar_markdown(nombre_archivo, resumen, detalles):
+# ------------------------
+# DETECCIÓN DE MALAS PRÁCTICAS
+# ------------------------
+
+def detect_smells_python(py_classes, functions):
+    issues = []
+    for fname, docstring, node in functions:
+        if docstring == "No docstring":
+            issues.append(f"Función `{fname}` sin docstring.")
+    for cname, methods in py_classes:
+        if len(methods) == 0:
+            issues.append(f"Clase `{cname}` sin métodos.")
+        for mname, doc, node in methods:
+            if doc == "No docstring":
+                issues.append(f"Método `{mname}` en clase `{cname}` sin docstring.")
+            if hasattr(node, 'body') and len(node.body) > 20:
+                issues.append(f"Método `{mname}` en clase `{cname}` es muy largo (>20 líneas).")
+    return issues
+
+def detect_smells_java(java_classes):
+    issues = []
+    for class_name, methods in java_classes:
+        if len(methods) == 0:
+            issues.append(f"Clase `{class_name}` sin métodos.")
+        for method_name, has_doc in methods:
+            if not has_doc:
+                issues.append(f"Método `{method_name}` en clase `{class_name}` sin documentación.")
+    return issues
+
+# ------------------------
+# EXPORTACIÓN
+# ------------------------
+
+def generar_markdown(nombre_archivo, resumen, detalles, smells):
     md = StringIO()
     md.write(f"# Documentación generada para `{nombre_archivo}`\n\n")
     md.write(f"**Fecha:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
@@ -69,6 +109,10 @@ def generar_markdown(nombre_archivo, resumen, detalles):
     md.write("## 🔍 Detalles\n")
     for bloque in detalles:
         md.write(bloque + "\n\n")
+    if smells:
+        md.write("## 🚨 Malas prácticas detectadas\n")
+        for smell in smells:
+            md.write(f"- {smell}\n")
     return md.getvalue()
 
 def convertir_pdf(md_text):
@@ -77,7 +121,10 @@ def convertir_pdf(md_text):
     pisa.CreatePDF(src=html, dest=pdf_bytes)
     return pdf_bytes.getvalue()
 
-# Streamlit UI
+# ------------------------
+# STREAMLIT APP
+# ------------------------
+
 st.title("🧠 Generador de Documentación Técnica para Código Legacy")
 
 uploaded_file = st.file_uploader("Sube un archivo de código fuente (.py o .java)", type=["py", "java"])
@@ -90,6 +137,8 @@ if uploaded_file is not None:
 
     st.subheader("🧠 Resumen general del archivo")
     markdown_blocks = []
+    smells = []
+
     if extension == "py":
         py_classes, functions = extract_python_classes_and_functions(code)
         summary = summarize_python_structure(py_classes, functions)
@@ -100,18 +149,20 @@ if uploaded_file is not None:
         for class_name, methods in py_classes:
             block = f"### Clase: `{class_name}`\n"
             st.markdown(f"### Clase: `{class_name}`")
-            for method_name, docstring in methods:
+            for method_name, docstring, _ in methods:
                 st.markdown(f"- Método: `{method_name}` — {docstring}")
                 block += f"- Método: `{method_name}` — {docstring}\n"
             markdown_blocks.append(block)
 
         st.subheader("🔍 Funciones detectadas (Python)")
         block = ""
-        for name, docstring in functions:
+        for name, docstring, _ in functions:
             st.markdown(f"**Función:** `{name}`")
             st.markdown(f"> {docstring}")
             block += f"**Función:** `{name}`\n> {docstring}\n"
         markdown_blocks.append(block)
+
+        smells = detect_smells_python(py_classes, functions)
 
     elif extension == "java":
         java_classes = extract_java_elements(code)
@@ -123,14 +174,20 @@ if uploaded_file is not None:
         for class_name, methods in java_classes:
             block = f"### Clase: `{class_name}`\n"
             st.markdown(f"### Clase: `{class_name}`")
-            for method_name, docstring in methods:
-                st.markdown(f"- Método: `{method_name}` — {docstring}")
-                block += f"- Método: `{method_name}` — {docstring}\n"
+            for method_name, _ in methods:
+                st.markdown(f"- Método: `{method_name}`")
+                block += f"- Método: `{method_name}`\n"
             markdown_blocks.append(block)
 
-    st.subheader("📤 Exportar documentación")
-    markdown_text = generar_markdown(uploaded_file.name, summary, markdown_blocks)
-    st.download_button("📄 Descargar como Markdown", markdown_text.encode("utf-8"), file_name="documentacion.md")
+        smells = detect_smells_java(java_classes)
 
+    if smells:
+        st.subheader("🚨 Malas prácticas detectadas")
+        for issue in smells:
+            st.markdown(f"- {issue}")
+
+    st.subheader("📤 Exportar documentación")
+    markdown_text = generar_markdown(uploaded_file.name, summary, markdown_blocks, smells)
+    st.download_button("📄 Descargar como Markdown", markdown_text.encode("utf-8"), file_name="documentacion.md")
     pdf_file = convertir_pdf(markdown_text)
     st.download_button("📄 Descargar como PDF", pdf_file, file_name="documentacion.pdf")
