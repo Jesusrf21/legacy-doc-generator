@@ -184,7 +184,13 @@ if uploaded_file is not None:
     if smells:
         st.subheader("🚨 Malas prácticas detectadas")
         for issue in smells:
-            st.markdown(f"- {issue}")
+            st.markdown(
+                f"<div style='color:crimson; font-weight:bold; margin-bottom:8px;'>❗ {issue}</div>",
+                unsafe_allow_html=True
+            )
+    else:
+        st.markdown("<div style='color:green; font-weight:bold;'>✅ No se han detectado malas prácticas en este archivo.</div>", unsafe_allow_html=True)
+
 
     st.subheader("📤 Exportar documentación")
     markdown_text = generar_markdown(uploaded_file.name, summary, markdown_blocks, smells)
