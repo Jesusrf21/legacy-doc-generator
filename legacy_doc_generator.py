@@ -213,3 +213,26 @@ if uploaded_file is not None:
         st.download_button("📄 Descargar como Markdown", markdown_text.encode("utf-8"), file_name=f"{filename}.md")
         pdf_file = convertir_pdf(markdown_text)
         st.download_button("📄 Descargar como PDF", pdf_file, file_name=f"{filename}.pdf")
+
+        # Acumular para descarga masiva
+        if "documentos_exportados" not in st.session_state:
+            st.session_state["documentos_exportados"] = []
+        st.session_state["documentos_exportados"].append((filename, markdown_text, pdf_file))
+
+# ZIP conjunto al final
+if st.session_state.get("documentos_exportados"):
+    st.divider()
+    st.subheader("📦 Descargar toda la documentación como ZIP")
+
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zipf:
+        for fname, md, pdf in st.session_state["documentos_exportados"]:
+            zipf.writestr(f"{fname}.md", md)
+            zipf.writestr(f"{fname}.pdf", pdf)
+
+    st.download_button(
+        "📥 Descargar ZIP completo",
+        zip_buffer.getvalue(),
+        file_name="documentacion_completa.zip",
+        mime="application/zip"
+    )
