@@ -1,79 +1,53 @@
 class Usuario:
-    """
-    Representa a un usuario básico de la aplicación.
-    """
+    """Representa un usuario genérico del sistema."""
 
     def __init__(self, nombre, email):
-        """
-        Inicializa un nuevo usuario con nombre y email.
-        """
         self.nombre = nombre
         self.email = email
-        self.activo = True
 
-    def desactivar(self):
-        """
-        Marca al usuario como inactivo.
-        """
-        self.activo = False
+    def saludar(self):
+        """Devuelve un saludo personalizado."""
+        return f"Hola, {self.nombre}"
 
-    def mostrar_info(self):
-        """
-        Devuelve un resumen de los datos del usuario.
-        """
-        estado = "Activo" if self.activo else "Inactivo"
-        return f"{self.nombre} ({self.email}) - {estado}"
+    def despedirse(self):
+        print("Hasta luego!")
 
 
 class Administrador(Usuario):
-    """
-    Usuario con privilegios de administración.
-    """
+    """Usuario con privilegios de administración."""
 
-    def __init__(self, nombre, email):
-        """
-        Inicializa un administrador usando la clase base Usuario.
-        """
-        super().__init__(nombre, email)
-        self.privilegios = ["moderar", "borrar usuarios", "ver estadísticas"]
+    def reiniciar_sistema(self):
+        """Simula el reinicio del sistema."""
+        print("Reiniciando sistema...")
 
-    def agregar_privilegio(self, privilegio):
-        """
-        Añade un privilegio al administrador.
-        """
-        if privilegio not in self.privilegios:
-            self.privilegios.append(privilegio)
+    def generar_reporte(self):
+        # Sin docstring
+        print("Generando reporte...")
 
-    def mostrar_info(self):
-        """
-        Devuelve información del administrador, incluyendo privilegios.
-        """
-        base = super().mostrar_info()
-        return base + f" | Privilegios: {', '.join(self.privilegios)}"
+    def metodo_largo(self):
+        # Este método intencionalmente es muy largo
+        for i in range(25):
+            print(f"Línea {i+1}")
 
 
-def crear_usuarios():
-    """
-    Crea una lista de usuarios de ejemplo.
-    """
-    u1 = Usuario("Laura", "laura@example.com")
-    u2 = Usuario("Carlos", "carlos@example.com")
-    u3 = Administrador("Sofía", "sofia@example.com")
-    u3.agregar_privilegio("editar perfiles")
-
-    return [u1, u2, u3]
+class Auditor:
+    pass  # clase sin métodos
 
 
-def imprimir_resumen(usuarios):
-    """
-    Imprime la información de una lista de usuarios.
-    """
-    for usuario in usuarios:
-        print(usuario.mostrar_info())
+def enviar_correo(destinatario, asunto, mensaje):
+    """Simula el envío de un correo."""
+    print(f"Enviando correo a {destinatario} con asunto '{asunto}'")
 
 
-# Ejecución de ejemplo
-if __name__ == "__main__":
-    usuarios = crear_usuarios()
-    usuarios[1].desactivar()
-    imprimir_resumen(usuarios)
+def funcion_sin_docstring():
+    print("Esto no debería pasar desapercibido.")
+
+
+def sumar(a, b):
+    """Devuelve la suma de dos números."""
+    return a + b
+
+
+def dividir(a, b):
+    """Divide dos números, sin manejo de errores."""
+    return a / b

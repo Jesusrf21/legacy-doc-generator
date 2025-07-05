@@ -7,6 +7,7 @@ from io import StringIO, BytesIO
 from datetime import datetime
 from markdown import markdown
 from xhtml2pdf import pisa
+import zipfile
 
 # ------------------------
 # EXTRACCIÓN Y ANÁLISIS
@@ -127,73 +128,88 @@ def convertir_pdf(md_text):
 
 st.title("🧠 Generador de Documentación Técnica para Código Legacy")
 
-uploaded_file = st.file_uploader("Sube un archivo de código fuente (.py o .java)", type=["py", "java"])
+uploaded_file = st.file_uploader("Sube un archivo (.py, .java o .zip)", type=["py", "java", "zip"])
 
 if uploaded_file is not None:
-    code = uploaded_file.read().decode("utf-8")
-    st.subheader("📄 Código fuente")
-    extension = uploaded_file.name.split(".")[-1]
-    st.code(code, language="java" if extension == "java" else "python")
+    archivos = []
 
-    st.subheader("🧠 Resumen general del archivo")
-    markdown_blocks = []
-    smells = []
-
-    if extension == "py":
-        py_classes, functions = extract_python_classes_and_functions(code)
-        summary = summarize_python_structure(py_classes, functions)
-        st.text(summary)
-        markdown_blocks.append(f"{summary}")
-
-        st.subheader("🏛️ Clases y métodos detectados (Python)")
-        for class_name, methods in py_classes:
-            block = f"### Clase: `{class_name}`\n"
-            st.markdown(f"### Clase: `{class_name}`")
-            for method_name, docstring, _ in methods:
-                st.markdown(f"- Método: `{method_name}` — {docstring}")
-                block += f"- Método: `{method_name}` — {docstring}\n"
-            markdown_blocks.append(block)
-
-        st.subheader("🔍 Funciones detectadas (Python)")
-        block = ""
-        for name, docstring, _ in functions:
-            st.markdown(f"**Función:** `{name}`")
-            st.markdown(f"> {docstring}")
-            block += f"**Función:** `{name}`\n> {docstring}\n"
-        markdown_blocks.append(block)
-
-        smells = detect_smells_python(py_classes, functions)
-
-    elif extension == "java":
-        java_classes = extract_java_elements(code)
-        summary = summarize_java_structure(java_classes)
-        st.text(summary)
-        markdown_blocks.append(f"{summary}")
-
-        st.subheader("🔍 Clases y métodos detectados (Java)")
-        for class_name, methods in java_classes:
-            block = f"### Clase: `{class_name}`\n"
-            st.markdown(f"### Clase: `{class_name}`")
-            for method_name, _ in methods:
-                st.markdown(f"- Método: `{method_name}`")
-                block += f"- Método: `{method_name}`\n"
-            markdown_blocks.append(block)
-
-        smells = detect_smells_java(java_classes)
-
-    if smells:
-        st.subheader("🚨 Malas prácticas detectadas")
-        for issue in smells:
-            st.markdown(
-                f"<div style='color:crimson; font-weight:bold; margin-bottom:8px;'>❗ {issue}</div>",
-                unsafe_allow_html=True
-            )
+    if uploaded_file.name.endswith(".zip"):
+        with zipfile.ZipFile(uploaded_file) as z:
+            for file_info in z.infolist():
+                if file_info.filename.endswith((".py", ".java")):
+                    with z.open(file_info) as f:
+                        code = f.read().decode("utf-8")
+                        archivos.append((file_info.filename, code))
+        if not archivos:
+            st.warning("El archivo ZIP no contiene ningún archivo .py ni .java válido.")
+            st.stop()
     else:
-        st.markdown("<div style='color:green; font-weight:bold;'>✅ No se han detectado malas prácticas en este archivo.</div>", unsafe_allow_html=True)
+        code = uploaded_file.read().decode("utf-8")
+        archivos.append((uploaded_file.name, code))
 
+    for filename, code in archivos:
+        st.divider()
+        st.subheader(f"📁 Archivo: `{filename}`")
+        extension = filename.split(".")[-1]
+        st.code(code, language="java" if extension == "java" else "python")
 
-    st.subheader("📤 Exportar documentación")
-    markdown_text = generar_markdown(uploaded_file.name, summary, markdown_blocks, smells)
-    st.download_button("📄 Descargar como Markdown", markdown_text.encode("utf-8"), file_name="documentacion.md")
-    pdf_file = convertir_pdf(markdown_text)
-    st.download_button("📄 Descargar como PDF", pdf_file, file_name="documentacion.pdf")
+        markdown_blocks = []
+        smells = []
+
+        if extension == "py":
+            py_classes, functions = extract_python_classes_and_functions(code)
+            summary = summarize_python_structure(py_classes, functions)
+            st.text(summary)
+            markdown_blocks.append(f"{summary}")
+
+            st.subheader("🏛️ Clases y métodos detectados (Python)")
+            for class_name, methods in py_classes:
+                block = f"### Clase: `{class_name}`\n"
+                st.markdown(f"### Clase: `{class_name}`")
+                for method_name, docstring, _ in methods:
+                    st.markdown(f"- Método: `{method_name}` — {docstring}")
+                    block += f"- Método: `{method_name}` — {docstring}\n"
+                markdown_blocks.append(block)
+
+            st.subheader("🔍 Funciones detectadas (Python)")
+            block = ""
+            for name, docstring, _ in functions:
+                st.markdown(f"**Función:** `{name}`")
+                st.markdown(f"> {docstring}")
+                block += f"**Función:** `{name}`\n> {docstring}\n"
+            markdown_blocks.append(block)
+
+            smells = detect_smells_python(py_classes, functions)
+
+        elif extension == "java":
+            java_classes = extract_java_elements(code)
+            summary = summarize_java_structure(java_classes)
+            st.text(summary)
+            markdown_blocks.append(f"{summary}")
+
+            st.subheader("🔍 Clases y métodos detectados (Java)")
+            for class_name, methods in java_classes:
+                block = f"### Clase: `{class_name}`\n"
+                st.markdown(f"### Clase: `{class_name}`")
+                for method_name, _ in methods:
+                    st.markdown(f"- Método: `{method_name}`")
+                    block += f"- Método: `{method_name}`\n"
+                markdown_blocks.append(block)
+
+            smells = detect_smells_java(java_classes)
+
+        if smells:
+            st.subheader("🚨 Malas prácticas detectadas")
+            for issue in smells:
+                st.markdown(
+                    f"<div style='color:crimson; font-weight:bold; margin-bottom:8px;'>❗ {issue}</div>",
+                    unsafe_allow_html=True
+                )
+        else:
+            st.markdown("<div style='color:green; font-weight:bold;'>✅ No se han detectado malas prácticas en este archivo.</div>", unsafe_allow_html=True)
+
+        st.subheader("📤 Exportar documentación")
+        markdown_text = generar_markdown(filename, summary, markdown_blocks, smells)
+        st.download_button("📄 Descargar como Markdown", markdown_text.encode("utf-8"), file_name=f"{filename}.md")
+        pdf_file = convertir_pdf(markdown_text)
+        st.download_button("📄 Descargar como PDF", pdf_file, file_name=f"{filename}.pdf")
