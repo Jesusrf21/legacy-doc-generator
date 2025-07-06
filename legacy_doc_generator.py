@@ -167,6 +167,42 @@ def convertir_pdf(md_text):
     pisa.CreatePDF(src=html, dest=pdf_bytes)
     return pdf_bytes.getvalue()
 
+
+# ------------------------
+# RESÚMENES NATURALES EN LENGUAJE NATURAL
+# ------------------------
+
+def generar_resumen_natural(nombre_archivo, extension, resumen, metricas, smells):
+    partes = [f"🔎 Análisis del archivo `{nombre_archivo}`:"]
+    if extension == "py":
+        clases = metricas.get("🏛️ Clases", 0)
+        funcs = metricas.get("🛠️ Funciones/Métodos", 0)
+        docstring_faltantes = metricas.get("⚠️ Sin docstring", 0)
+        largos = metricas.get("📏 Métodos largos", 0)
+        partes.append(f"Este archivo contiene {clases} clases y {funcs} funciones o métodos.")
+        if docstring_faltantes > 0:
+            partes.append(f"Se detectaron {docstring_faltantes} funciones o métodos sin docstring.")
+        if largos > 0:
+            partes.append(f"También hay {largos} métodos que superan las 20 líneas de longitud.")
+        if not smells:
+            partes.append("No se detectaron malas prácticas evidentes.")
+        else:
+            partes.append("Se recomienda revisar el estilo y la documentación de algunos elementos.")
+
+    elif extension == "java":
+        clases = metricas.get("🏛️ Clases", 0)
+        metodos = metricas.get("🛠️ Métodos", 0)
+        sin_docs = metricas.get("⚠️ Sin documentación", 0)
+        partes.append(f"Este archivo contiene {clases} clases con un total de {metodos} métodos.")
+        if sin_docs > 0:
+            partes.append(f"Se encontraron {sin_docs} métodos sin documentación.")
+        if not smells:
+            partes.append("Todo parece estar bien documentado y estructurado.")
+        else:
+            partes.append("Sería conveniente documentar mejor algunos métodos.")
+
+    return " ".join(partes)
+
 # ------------------------
 # STREAMLIT APP
 # ------------------------
@@ -233,6 +269,11 @@ if uploaded_file is not None:
 
             smells = detect_smells_python(py_classes, functions)
 
+            resumen_natural = generar_resumen_natural(filename, extension, summary, metricas, smells)
+            st.subheader("📝 Resumen en lenguaje natural")
+            st.markdown(resumen_natural)
+            markdown_blocks.append(f"## 📝 Resumen natural\n{resumen_natural}")
+
             if smells:
                 st.subheader("🚨 Malas prácticas detectadas")
                 for issue in smells:
@@ -272,6 +313,11 @@ if uploaded_file is not None:
                 markdown_blocks.append(block)
 
             smells = detect_smells_java(java_classes)
+
+            resumen_natural = generar_resumen_natural(filename, extension, summary, metricas, smells)
+            st.subheader("📝 Resumen en lenguaje natural")
+            st.markdown(resumen_natural)
+            markdown_blocks.append(f"## 📝 Resumen natural\n{resumen_natural}")
 
             if smells:
                 st.subheader("🚨 Malas prácticas detectadas")
