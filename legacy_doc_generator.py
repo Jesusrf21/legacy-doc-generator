@@ -8,6 +8,8 @@ from datetime import datetime
 from markdown import markdown
 from xhtml2pdf import pisa
 import zipfile
+import astor
+from codigo_mejorado_ai import mejorar_codigo_con_docstrings
 
 # ------------------------
 # EXTRACCIÓN Y ANÁLISIS
@@ -72,7 +74,7 @@ def summarize_java_structure(classes):
 def contar_lineas_codigo(code):
     return sum(1 for line in code.splitlines() if line.strip())
 
-def obtener_métricas_python(code, clases, funciones):
+def obtener_métricas_python(code, clases, functions):
     lineas = contar_lineas_codigo(code)
     total_clases = len(clases)
     total_funciones = len(functions)
@@ -100,7 +102,7 @@ def obtener_métricas_java(code, clases):
     }
 
 # ------------------------
-# DETECCIÓN DE MALAS PRÁCTICAS
+# DETECCIÓN DE MALAS PRÁCTICAS Y SUGERENCIAS
 # ------------------------
 
 def detect_smells_python(py_classes, functions):
@@ -127,6 +129,19 @@ def detect_smells_java(java_classes):
             if not has_doc:
                 issues.append(f"Método `{method_name}` en clase `{class_name}` sin documentación.")
     return issues
+
+def sugerencias_mejoras(smells):
+    mejoras = []
+    for problema in smells:
+        if "sin docstring" in problema or "sin documentación" in problema:
+            mejoras.append("✍️ Añade un docstring que explique la funcionalidad del método o función.")
+        elif "muy largo" in problema:
+            mejoras.append("🔧 Divide el método en varias funciones más pequeñas para mejorar la legibilidad.")
+        elif "sin métodos" in problema:
+            mejoras.append("📐 Revisa si la clase necesita lógica interna o puede ser convertida en una estructura de datos.")
+        else:
+            mejoras.append("💡 Revisa este fragmento para aplicar buenas prácticas.")
+    return list(set(mejoras))
 
 # ------------------------
 # EXPORTACIÓN
@@ -218,6 +233,22 @@ if uploaded_file is not None:
 
             smells = detect_smells_python(py_classes, functions)
 
+            if smells:
+                st.subheader("🚨 Malas prácticas detectadas")
+                for issue in smells:
+                    st.markdown(f"<div style='color:crimson; font-weight:bold; margin-bottom:8px;'>❗ {issue}</div>", unsafe_allow_html=True)
+                if st.button(f"💡 Sugerir mejoras automáticas ({filename})"):
+                    sugerencias = sugerencias_mejoras(smells)
+                    st.markdown("### ✅ Recomendaciones de mejora:")
+                    for sug in sugerencias:
+                        st.markdown(f"- {sug}")
+
+                if st.button(f"✨ Generar versión mejorada del código ({filename})"):
+                    codigo_mejorado = mejorar_codigo_con_docstrings(code)
+                    st.subheader("✨ Código mejorado automáticamente")
+                    st.code(codigo_mejorado, language="python")
+                    st.download_button("⬇️ Descargar código mejorado", codigo_mejorado, file_name=f"mejorado_{filename}")
+
         elif extension == "java":
             java_classes = extract_java_elements(code)
             summary = summarize_java_structure(java_classes)
@@ -242,15 +273,17 @@ if uploaded_file is not None:
 
             smells = detect_smells_java(java_classes)
 
-        if smells:
-            st.subheader("🚨 Malas prácticas detectadas")
-            for issue in smells:
-                st.markdown(
-                    f"<div style='color:crimson; font-weight:bold; margin-bottom:8px;'>❗ {issue}</div>",
-                    unsafe_allow_html=True
-                )
-        else:
-            st.markdown("<div style='color:green; font-weight:bold;'>✅ No se han detectado malas prácticas en este archivo.</div>", unsafe_allow_html=True)
+            if smells:
+                st.subheader("🚨 Malas prácticas detectadas")
+                for issue in smells:
+                    st.markdown(f"<div style='color:crimson; font-weight:bold; margin-bottom:8px;'>❗ {issue}</div>", unsafe_allow_html=True)
+                if st.button(f"💡 Sugerir mejoras automáticas ({filename})"):
+                    sugerencias = sugerencias_mejoras(smells)
+                    st.markdown("### ✅ Recomendaciones de mejora:")
+                    for sug in sugerencias:
+                        st.markdown(f"- {sug}")
+            else:
+                st.markdown("<div style='color:green; font-weight:bold;'>✅ No se han detectado malas prácticas en este archivo.</div>", unsafe_allow_html=True)
 
         st.subheader("📤 Exportar documentación")
         markdown_text = generar_markdown(filename, summary, markdown_blocks, smells)
