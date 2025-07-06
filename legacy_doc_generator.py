@@ -10,6 +10,8 @@ from xhtml2pdf import pisa
 import zipfile
 import astor
 from codigo_mejorado_ai import mejorar_codigo_con_docstrings
+from explicador_ai import explicar_codigo
+
 
 # ------------------------
 # EXTRACCIÓN Y ANÁLISIS
@@ -265,6 +267,14 @@ if uploaded_file is not None:
                 st.markdown(f"**Función:** `{name}`")
                 st.markdown(f"> {docstring}")
                 block += f"**Función:** `{name}`\n> {docstring}\n"
+                if st.button(f"🧠 Explicar '{name}' ({filename})"):
+                    try:
+                        bloque_funcion = ast.get_source_segment(code, _)
+                        explicacion = explicar_codigo(bloque_funcion)
+                        st.markdown(f"**🧠 Explicación generada:**\n\n{explicacion}")
+                    except Exception as e:
+                        st.warning(f"No se pudo extraer el código fuente: {e}")
+
             markdown_blocks.append(block)
 
             smells = detect_smells_python(py_classes, functions)
